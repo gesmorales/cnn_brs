@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify
-import numpy as np
 from tensorflow.keras.models import load_model
+import numpy as np
+import os
 
 app = Flask(__name__)
 
 # Load model
 model = load_model("brs_cnn_with_demographics.keras")
 
-# Labels
 labels = [
     "Low Resilience",
     "Normal Resilience",
@@ -16,31 +16,37 @@ labels = [
 
 @app.route("/")
 def home():
-    return "BRS CNN API Running"
+    return "CNN API Running Successfully"
 
 @app.route("/predict", methods=["POST"])
 def predict():
 
-    data = request.json
+    try:
+        data = request.json
 
-    # Example input
-    features = np.array(data["features"])
+        features = np.array(data["features"])
 
-    # Reshape for CNN
-    features = features.reshape(1, len(features), 1)
+        # reshape for CNN
+        features = features.reshape(1, 8, 1)
 
-    prediction = model.predict(features)
+        prediction = model.predict(features)
 
-    predicted_class = int(np.argmax(prediction))
+        predicted_class = int(np.argmax(prediction))
 
-    result = labels[predicted_class]
+        result = labels[predicted_class]
 
-    confidence = float(np.max(prediction))
+        confidence = float(np.max(prediction))
 
-    return jsonify({
-        "prediction": result,
-        "confidence": confidence
-    })
+        return jsonify({
+            "prediction": result,
+            "confidence": confidence
+        })
+
+    except Exception as e:
+        return jsonify({
+            "error": str(e)
+        })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
