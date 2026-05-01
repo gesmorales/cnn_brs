@@ -1,12 +1,16 @@
 from flask import Flask, request, jsonify
-from tensorflow.keras.models import load_model
 import numpy as np
+import tensorflow as tf
 import os
 
 app = Flask(__name__)
 
-# Load model
-model = load_model("brs_cnn_with_demographics.keras")
+# Load TFLite model
+interpreter = tf.lite.Interpreter(model_path="brs_model.tflite")
+interpreter.allocate_tensors()
+
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
 
 labels = [
     "Low Resilience",
@@ -16,7 +20,7 @@ labels = [
 
 @app.route("/")
 def home():
-    return "CNN API Running Successfully"
+    return "TFLite API Running"
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -24,36 +28,34 @@ def predict():
     try:
         data = request.get_json()
 
-        print("Received:", data)
+        features = np.array(
+            data["features"],
+            dtype=np.float32
+        )
 
-        features = np.array(data["features"], dtype=float)
-
-        print("Before reshape:", features.shape)
-
-        # reshape for CNN
         features = features.reshape(1, 8, 1)
 
-        print("After reshape:", features.shape)
+        interpreter.set_tensor(
+            input_details[0]['index'],
+            features
+        )
 
-        prediction = model.predict(features)
+        interpreter.invoke()
 
-        print("Prediction:", prediction)
+        prediction = interpreter.get_tensor(
+            output_details[0]['index']
+        )
 
         predicted_class = int(np.argmax(prediction))
-
-        result = labels[predicted_class]
 
         confidence = float(np.max(prediction))
 
         return jsonify({
-            "prediction": result,
+            "prediction": labels[predicted_class],
             "confidence": confidence
         })
 
     except Exception as e:
-
-        print("ERROR:", str(e))
-
         return jsonify({
             "error": str(e)
         }), 500
