@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify
+from flask import Flask
+from flask_cors import CORS
 import numpy as np
 import tensorflow as tf
 import os
 
 app = Flask(__name__)
-
+CORS(app)
 # Load TFLite model
 interpreter = tf.lite.Interpreter(model_path="brs_model.tflite")
 interpreter.allocate_tensors()
